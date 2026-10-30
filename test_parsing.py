@@ -3,6 +3,14 @@
 Test script for Gemini response parsing
 """
 
+# This file holds a copy of parse_gemini_response from
+# wallpaper_generator.py, not an import of it. I copied it so this demo
+# runs on its own with no other setup, and the example below is the exact
+# response shape that made me write the parser. The risk is plain: fix
+# the parser in the generator and this copy does not follow, so a green
+# run here proves this copy works, not that the shipped one does. The
+# sample selects Option 1 and the parsed text is 551 characters long.
+
 def parse_gemini_response(response_text):
     """
     Parse Gemini response to extract the best option when multiple are provided.

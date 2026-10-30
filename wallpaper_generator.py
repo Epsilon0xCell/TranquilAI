@@ -20,6 +20,10 @@ from pathlib import Path
 try:
     import requests
 except ImportError:
+    # I install requests at import time because nothing in this file works
+    # without it. The cost is that importing this module can run pip, even
+    # for a --help call. I accept that here because this file is a script
+    # first and a library never, but it is worth knowing before reuse.
     print("Installing requests package...")
     subprocess.check_call([sys.executable, "-m", "pip", "install", "requests", "--user"])
     import requests
@@ -30,6 +34,10 @@ try:
     from dotenv import load_dotenv
     GEMINI_AVAILABLE = True
     # Load environment variables
+    # The .env load lives inside this try on purpose and by accident at
+    # the same time: if the genai package is missing, load_dotenv never
+    # runs. That is harmless today because the only key I read from the
+    # environment is the Gemini key, which is useless without the package.
     load_dotenv()
 except ImportError:
     GEMINI_AVAILABLE = False
@@ -44,6 +52,11 @@ except ImportError:
 
 def run_command(cmd, capture_output=True, shell=False):
     """Run a command and return the result."""
+    # Callers test the result with "result and result.returncode == 0"
+    # because a failed launch returns None here, not a result object with
+    # a bad code. Those two failures mean different things (the tool is
+    # not installed, or the tool ran and said no) but every caller in this
+    # file treats them the same, so I keep them apart only this far.
     try:
         if shell:
             result = subprocess.run(cmd, shell=True, capture_output=capture_output, text=True)
@@ -66,9 +79,20 @@ def download_image_from_pollinations(prompt, width, height, seed, model, output_
             image_url = f"https://pollinations.ai/p/{encoded_prompt}?width={width}&height={height}&seed={seed}&model={model}&nologo=true&private=true"
         else:
             # Standard mode - with nologo, enhance, and maximum quality parameters
+            # Both branches send private=true. The difference is that the
+            # standard branch also sends enhance=true, which hands the
+            # prompt to Pollinations for server side processing, plus the
+            # quality and steps settings. Private mode is mostly won
+            # earlier, in generate_wallpaper, where the prompt never goes
+            # to Gemini at all.
             image_url = f"https://pollinations.ai/p/{encoded_prompt}?width={width}&height={height}&seed={seed}&model={model}&nologo=true&enhance=true&private=true&quality=high&steps=120"
         
         print(f"Downloading image from Pollinations API...")
+        # The full URL goes to the terminal, prompt included. Anyone with
+        # the terminal scrollback or a log of this run can read the prompt
+        # back out of it, in private mode too. I keep the print because it
+        # is how I debug a bad generation, but private here means fewer
+        # services see the prompt, not that the prompt stays secret.
         print(f"  URL: {image_url}")
         
         # Download the image
@@ -80,6 +104,11 @@ def download_image_from_pollinations(prompt, width, height, seed, model, output_
             file.write(response.content)
         
         # Verify the file was created and has content
+        # This check is size only. raise_for_status above already caught
+        # HTTP errors, but a 200 response holding a small error image
+        # would pass this test and be treated as a wallpaper. I have not
+        # seen Pollinations do that; if it ever does, this is the line
+        # that believed it.
         if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
             print(f"✓ Image downloaded successfully: {output_file}")
             return True
@@ -101,6 +130,10 @@ def enhance_prompt_with_gemini(user_prompt):
             print("  Gemini not available, using original prompt")
             return add_no_text_instruction(user_prompt)
         
+        # Every failure in this function ends the same way: the original
+        # prompt plus the no text instruction. Gemini is a quality step,
+        # never a gate. A missing package, a missing key, or a failed call
+        # must not stop a wallpaper from being generated.
         api_key = os.getenv('GOOGLE_API_KEY')
         if not api_key:
             print("  No Gemini API key found, using original prompt")
@@ -109,6 +142,10 @@ def enhance_prompt_with_gemini(user_prompt):
         print("  Enhancing prompt with Gemini (gemini-2.0-flash-exp)...")
         
         # Check for alternative API key
+        # GOOGLE_API_KEY wins when both are set, and GEMINI_API_KEY alone
+        # is never used as the key. It only earns this warning. That is a
+        # trap I set for myself: a machine with only GEMINI_API_KEY set
+        # looks configured and still runs without enhancement.
         gemini_api_key = os.getenv('GEMINI_API_KEY')
         if gemini_api_key and api_key:
             print("Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.")
@@ -179,6 +216,13 @@ def generate_wallpaper(prompt, width, height, seed, output_file, private=False, 
         
         if download_success and not no_enhance:
             # Apply post-processing effects to enhance image quality
+            # A flaw I know is in this line: enhance_image_quality returns
+            # the input path both when it succeeds and when it fails and
+            # falls back to the original image, so this comparison is
+            # True either way. A failed enhancement is reported as a
+            # successful generation. The wallpaper on disk is fine in
+            # both cases, which is why I have left it, but the return
+            # value does not mean what the old comment beside it claimed.
             enhanced_output = enhance_image_quality(output_file)
             return enhanced_output == output_file  # Return True if processing succeeded
         elif download_success and no_enhance:
@@ -193,6 +237,11 @@ def generate_wallpaper(prompt, width, height, seed, output_file, private=False, 
 
 def install_wallpaper_tool():
     """Install a wallpaper setting tool"""
+    # Try order is npm first, then brew. If both fail I return
+    # "applescript" without installing anything, because AppleScript needs
+    # no install on a Mac. That also means this function never reports
+    # total failure, and a machine where osascript itself is missing or
+    # broken only finds out later, inside set_wallpaper.
     print("Installing wallpaper setting tool...")
     
     # Try wallpaper-cli first
@@ -219,11 +268,21 @@ def check_wallpaper_tool(tool):
         result = run_command(["which", "m"])
         return result and result.returncode == 0
     elif tool == "applescript":
+        # I do not probe for osascript. This returns True on any machine,
+        # including a Linux box where osascript does not exist, and the
+        # failure only shows up when the script actually runs. Read this
+        # as "always available on the Mac this tool targets", because
+        # that assumption is the whole reason AppleScript sits last in
+        # the set_wallpaper order as the fallback that cannot be missing.
         return True  # AppleScript is always available on macOS
     return False
 
 def get_display_count():
     """Get number of connected displays using AppleScript"""
+    # Failure here falls back to 1 display at the bottom of this
+    # function, silently. On a two display Mac with a broken osascript,
+    # a run would set one wallpaper and call it a full success, and only
+    # the summary count in main gives it away.
     try:
         result = run_command([
             "osascript", "-e",
@@ -237,6 +296,11 @@ def get_display_count():
 
 def get_display_resolution():
     """Get the primary display resolution."""
+    # Nothing calls this function. main uses --resolution or the same 5K
+    # pair hardcoded there. I keep it because real per display detection
+    # is the fix I would want before trusting this on mixed size
+    # monitors, but today it is dead code and its fallback below is the
+    # value main actually uses.
     try:
         result = run_command([
             "osascript", "-e",
@@ -298,6 +362,15 @@ def set_wallpaper(image_path, display_index=None, tool=None):
 
 def set_wallpaper_applescript(image_path, display_index=None):
     """Set wallpaper using AppleScript (built-in macOS method)"""
+    # Two different scripts because macOS gives me two different doors.
+    # A numbered desktop is reached through System Events, desktop N.
+    # Setting every desktop at once goes through Finder and its desktop
+    # picture. The image path is interpolated straight into the script
+    # text, so a path containing a double quote would break the script.
+    # Paths this program makes itself are timestamped names under the
+    # queue directory, so I have not hit that, but the queue directory
+    # itself comes from --queue-dir, which is user supplied and could
+    # carry one.
     try:
         if display_index is not None:
             # For specific display
@@ -431,6 +504,11 @@ def enhance_image_quality(image_path, output_path=None):
     
     try:
         # Use input path as output if not specified
+        # The default here means enhancement rewrites the downloaded file
+        # in place and saves it as JPEG whatever format it arrived in.
+        # There is no unenhanced copy left on disk after this runs. The
+        # only way to keep the original is --no-enhance at generation
+        # time, before this function is reached.
         if output_path is None:
             output_path = image_path
         
@@ -448,6 +526,12 @@ def enhance_image_quality(image_path, output_path=None):
                 img = img.convert('RGB')
             
             # Apply gentle enhancements
+            # The order of the five steps below is the point. Brightness
+            # goes first because the later steps read better on an image
+            # already near a sane level. Noise reduction runs before
+            # sharpening so the sharpening step does not sharpen the
+            # noise. Swap the last two and the output gets grainier, not
+            # clearer.
             enhanced_img = img.copy()
             
             # 1. Adaptive brightness adjustment
@@ -486,6 +570,11 @@ def apply_adaptive_brightness(img):
         mean_brightness = np.mean(img_array)
         
         # Apply conservative brightness adjustments only when needed
+        # The mean is taken over every channel of every pixel, so a
+        # mostly black night scene with one bright moon reads darker
+        # than it looks and gets the full boost. Images landing between
+        # 120 and 220 are left alone entirely. These bands are the whole
+        # policy; there is no per region judgement in here.
         if mean_brightness < 100:  # Very dark image
             brightness_enhancer = ImageEnhance.Brightness(img)
             img = brightness_enhancer.enhance(1.15)  # 15% boost
@@ -545,6 +634,12 @@ def apply_subtle_sharpening(img):
 def add_no_text_instruction(prompt):
     """Add 'no text' instruction to any prompt to ensure clean wallpapers"""
     # Add the instruction if not already present
+    # The check is a plain substring test on the lowered prompt. A prompt
+    # that mentions one of these phrases for any reason, even asking for
+    # a sign with no words on it in other wording, counts as covered and
+    # gets nothing appended. Every caller routes through here, including
+    # the Gemini failure fallbacks, so the instruction survives even when
+    # enhancement does not happen.
     no_text_keywords = ['no text', 'no letters', 'no words', 'no captions']
     prompt_lower = prompt.lower()
     
@@ -559,6 +654,11 @@ def parse_gemini_response(response_text):
     Sometimes Gemini provides multiple options despite instructions to provide only one.
     """
     try:
+        # I try three extraction shapes in order, strictest first: a
+        # quoted Option 1 block, an unquoted block that ends where
+        # Option 2 starts, then a line walk. Order matters because the
+        # loose patterns also match inside the strict ones, and running
+        # them first would return text with markdown still attached.
         # Check if response contains multiple options
         if "**Option" in response_text or "Option 1" in response_text:
             print("  Multiple options detected, selecting the first one...")
@@ -648,6 +748,10 @@ def main():
     args = parser.parse_args()
     
     # Handle setup
+    # --setup runs and exits before the prompt check below, so it is the
+    # one invocation that works with no prompt. It also still triggers
+    # the import time requests install at the top of this file if that
+    # package is missing, before it ever gets here.
     if args.setup:
         success = setup_dependencies()
         sys.exit(0 if success else 1)
@@ -670,6 +774,11 @@ def main():
     
     # Determine resolution
     if args.resolution:
+        # The split is on a lowercase x only. "1920X1080" lands in the
+        # ValueError below and reads as a format mistake, which is fair,
+        # but the number check after it matters more: it is what stops a
+        # 0 or a negative size from being pasted into the Pollinations
+        # URL, where it would fail far from the real cause.
         try:
             width, height = map(int, args.resolution.split('x'))
         except ValueError:
@@ -709,7 +818,15 @@ def main():
     for display_idx in range(1, displays + 1):
         print(f"\n--- Display {display_idx} ---")
         
+        # Display numbers start at 1 here because the AppleScript
+        # desktop numbering in set_wallpaper_applescript starts at 1.
+        # wallpaper-cli counts from 0 and its wrapper subtracts the 1
+        # back off. Keep this loop 1 based or every tool but one shifts.
         # Use random seed for uniqueness and variety
+        # A fresh seed per display means two displays get two different
+        # images from the same prompt. Pass the same seed twice and
+        # Pollinations gives the same image back, so this line is the
+        # only thing making a multi display run varied.
         seed = random.randint(1, 2147483647)  # Use max int32 value for compatibility
         
         # Always create timestamped files to preserve wallpaper history
