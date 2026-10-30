@@ -1,2 +1,5 @@
 queued-images
 past-generations
+.env
+__pycache__/
+*.pyc

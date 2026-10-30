@@ -1,8 +1,8 @@
 # TranquilAI - Serene AI Wallpaper Generator
 
-A powerful Python script that generates tranquil AI wallpapers using Google Gemini 2.5 Pro for prompt enhancement and Pollinations (Flux) for 100% free wallpaper image generation, further applying advanced AI post-processing effects to produce serene, beautiful masterpieces.
+A powerful Python script that generates tranquil AI wallpapers using Google Gemini (model gemini-2.0-flash-exp, as configured in the code) for prompt enhancement and Pollinations (Flux) for 100% free wallpaper image generation, further applying advanced AI post-processing effects to produce serene, beautiful masterpieces.
 
-- Changes the wallpaper daily with peaceful, stunning imagery
+- Generates a new tranquil wallpaper on each run (run it at login for a fresh wallpaper daily)
 - To me, other than music, wallpapers are the ultimate form of aesthetic art in the 21st century
 - I recommend upscaling the result with Upscayl (16x, Double Upscale) as Pollinations is limited to a certain resolution.
 - Do I recommend this tool? I do not recommend this tool if you are a wallpaper purist, AI generally creates low-quality, bad artistic style content, additionally unless you pay extremely high-costs, getting higher-resolution AI is difficult and it often has to be paired with an upscaler to look right, I'd recommend this tool to help you generate and view wallpapers before upscaling them and adding them to a proper wallpaper pack you are building, this should only be used as a preview tool if you want super-high-quality images. AI is generally low-quality and I recommend Wallhaven and Alphacoders Wallpaper Abyss instead.
@@ -10,17 +10,17 @@ A powerful Python script that generates tranquil AI wallpapers using Google Gemi
 - If you want a high-quality wallpaper every-day on MacOS I recommend this tool with Bing Wallpapers, ignoring the AI settings: https://www.dailywallpaperapp.com (Here is where the wallpapers are sourced from: https://www.bing.com/)
 - The only AI I have seen that can create good AI wallpapers is Google Whisk after replicating features of another image and then upscaling with another tool.
 - The issue with AI is that it often looks high-quality at a low size but when it is set at a wallpaper you start to notice the inherent flaws.
-- I avoid video wallpapers because they tend to get boring quickly, and the limited availability makes it hard to find many worth downloading; additionally, they require third-party tools that consume system resources and may not be compatible with all operating systems. I also appreciate the aesthetics and thoughtfulness of photos, which are easier to edit and manipulate than videos—editing videos is more work than I’m willing to put in for a wallpaper. Furthermore, videos can be distracting and take focus away from productive tasks on the computer.
+- I avoid video wallpapers because they tend to get boring quickly, and the limited availability makes it hard to find many worth downloading; additionally, they require third-party tools that consume system resources and may not be compatible with all operating systems. I also appreciate the aesthetics and thoughtfulness of photos, which are easier to edit and manipulate than videos, editing videos is more work than I’m willing to put in for a wallpaper. Furthermore, videos can be distracting and take focus away from productive tasks on the computer.
 - However, the best Video Wallpapers I have ever seen are located at https://www.3planesoft.com, they offer free versions which makes me respect their company. These wallpapers are 3D, high-quality, and extremely detailed, Wallpaper Engine is probably the best engine, yet is isn't available on mac.
 
-- Inspired by the macos-gen-ai-wallpaper repo and created by CY83R-3X71NC710N
+- Inspired by the macos-gen-ai-wallpaper project and created by Epsilon0xCell
 
 ## ✨ Example Output
 
 Here are examples of the stunning wallpapers this generator creates:
 
 ![Example Wallpaper](example_wallpaper.jpg)
-*Generated from prompt: "serene forest lake" - Enhanced by Gemini 2.5 Pro into a detailed, cinematic description*
+*Generated from prompt: "serene forest lake" - Enhanced by Gemini into a detailed, cinematic description*
 
 ![Example Wallpaper 2](wallpaper_example_2.jpg)
 
@@ -43,14 +43,14 @@ These breathtaking 5K wallpapers showcase the tranquil quality you can expect fo
 - **Perfect composition** with glass-like water reflections  
 - **Professional lighting** creating depth and atmosphere
 - **5120x2880 resolution** for crisp display on any screen
-- **Advanced post-processing** with noise reduction, HDR effects, and quality optimization
+- **Advanced post-processing** with brightness, contrast and color adjustment, noise reduction, and sharpening
 
 ## Features
 
 - **Single Script**: All functionality consolidated into one Python file
-- **Intelligent Prompt Enhancement**: Uses Google Gemini 2.5 Pro to enhance prompts for better AI-generated wallpapers
+- **Intelligent Prompt Enhancement**: Uses Google Gemini to enhance prompts for better AI-generated wallpapers
 - **High-Quality Image Generation**: Uses Pollinations AI with the Flux model for stunning wallpapers
-- **Advanced Post-Processing**: Automatic image enhancement with noise reduction, HDR effects, gamma correction, edge enhancement, and quality optimization
+- **Advanced Post-Processing**: Automatic image enhancement with adaptive brightness correction, gentle contrast and color adjustment, light noise reduction, and subtle sharpening
 - **Multiple Wallpaper Tools**: Supports wallpaper-cli, m-cli, and AppleScript for setting wallpapers
 - **Multi-Display Support**: Automatically detects and generates wallpapers for multiple displays
 - **5K Resolution**: Generates up to 5120x2880 resolution for maximum quality on macOS displays
@@ -62,12 +62,6 @@ These breathtaking 5K wallpapers showcase the tranquil quality you can expect fo
 
 ### 1. Setup (One-time)
 
-**Option A: Easy Setup (Recommended)**
-```bash
-./setup-easy.sh
-```
-
-**Option B: Manual Setup**
 ```bash
 # Install dependencies
 python3 wallpaper_generator.py --setup
@@ -93,11 +87,6 @@ python3 wallpaper_generator.py "a serene mountain landscape at sunset"
 **Private Mode (no prompt enhancement)**:
 ```bash
 python3 wallpaper_generator.py "a serene mountain landscape at sunset" --private
-```
-
-**Using the convenient wrapper**:
-```bash
-./generate-wallpaper "a serene mountain landscape at sunset"
 ```
 
 ### 4. Advanced Usage
@@ -129,7 +118,7 @@ python3 wallpaper_generator.py "space nebula" --displays 3
 
 ## How It Works
 
-1. **Prompt Enhancement**: If a Google API key is available and not in private mode, Gemini 2.5 Pro enhances your prompt with detailed visual descriptions
+1. **Prompt Enhancement**: If a Google API key is available and not in private mode, Gemini enhances your prompt with detailed visual descriptions
 2. **Display Detection**: Automatically detects the number of connected displays
 3. **Image Generation**: Uses Pollinations AI with enhanced prompts to generate high-quality images (default 5K resolution)
 4. **Queue System**: Saves images to a queue directory with unique timestamped filenames
@@ -169,7 +158,7 @@ options:
 ## Requirements
 
 - macOS (tested on macOS 10.15+)
-- Python 3.6+
+- Python 3.9+ (required by the google-genai client)
 - Internet connection for image generation
 
 ## Dependencies
@@ -179,7 +168,7 @@ options:
 - `wallpaper-cli` or `m-cli` - Wallpaper setting tools
 
 **Gemini Enhancement Dependencies (Auto-installed):**
-- `google-generativeai` - Google Generative AI client
+- `google-genai` - Google Gemini client (the package the script imports)
 - `python-dotenv` - Environment variable management
 - Valid Google API key from [Google AI Studio](https://aistudio.google.com/apikey) (optional)
 
@@ -205,14 +194,9 @@ python3 wallpaper_generator.py "futuristic city skyline at night with neon light
 python3 wallpaper_generator.py "deep space nebula with stars and galaxies" --save-dir ~/Pictures/AI-Wallpapers
 ```
 
-### Using the Wrapper Script
-```bash
-./generate-wallpaper "peaceful forest with morning mist and sunbeams"
-```
-
 ## Prompt Enhancement
 
-When a Google API key is available and not in private mode, the script uses Gemini 2.5 Pro to enhance your prompts:
+When a Google API key is available and not in private mode, the script uses Gemini to enhance your prompts:
 
 **Original**: `"mountain landscape"`
 **Enhanced**: `"Breathtaking mountain landscape with dramatic peaks piercing through morning clouds, golden hour lighting casting warm glows across snow-capped summits, pristine alpine meadows with wildflowers in the foreground, crystal clear mountain lake reflecting the majestic scenery, professional landscape photography, ultra-high resolution, cinematic composition"`
@@ -224,12 +208,11 @@ This results in significantly more detailed and visually stunning wallpapers.
 The wallpaper generator automatically applies professional-grade image enhancement effects to improve visual quality:
 
 ### Automatic Enhancement Features
-- **Noise Reduction**: Advanced algorithms remove grain and image artifacts while preserving important details
-- **HDR-like Effects**: Local contrast enhancement creates depth and visual impact
-- **Gamma Correction**: Optimizes brightness balance across different lighting conditions  
-- **Edge Enhancement**: Subtle sharpening increases detail clarity without over-processing
-- **Color Optimization**: Automatic brightness and color temperature adjustments for optimal visual appeal
-- **Contrast Enhancement**: Intelligent contrast boosting based on image characteristics
+- **Adaptive Brightness**: Brightness is raised for dark images and lowered for very bright ones, based on the mean pixel value
+- **Contrast Enhancement**: A gentle 5 percent contrast boost
+- **Color Optimization**: A gentle 8 percent saturation boost
+- **Noise Reduction**: A light blend with a Gaussian-blurred copy (15 percent) to reduce grain while preserving detail
+- **Sharpening**: A subtle unsharp-mask style pass for clarity
 
 ### Post-Processing Control
 - **Enabled by Default**: All generated wallpapers receive automatic enhancement
@@ -238,21 +221,19 @@ The wallpaper generator automatically applies professional-grade image enhanceme
 
 **Example Enhancement Process:**
 ```
-Original Image → Noise Reduction → HDR Effects → Gamma Correction → 
-Edge Enhancement → Color Optimization → Final High-Quality Wallpaper
+Original Image → Adaptive Brightness → Contrast → Color → Noise Reduction → Sharpening → Final Wallpaper
 ```
 
 ## Quality & Examples
 
 ### What Makes These Wallpapers Special
 
-The combination of **Gemini 2.5 Pro** prompt enhancement + **Pollinations AI** generation + **Advanced Post-Processing** creates serene wallpapers with:
+The combination of **Gemini** prompt enhancement + **Pollinations AI** generation + **Advanced Post-Processing** creates serene wallpapers with:
 
 - **🎨 Professional Quality**: Cinematic lighting, perfect composition, and photorealistic details
 - **🖥️ Retina Ready**: Default 5K resolution (5120x2880) for crisp display on any screen
 - **🎯 Perfect Prompts**: Gemini transforms simple prompts into detailed artistic descriptions
-- **✨ Enhanced Processing**: Automatic noise reduction, HDR effects, and quality optimization
-- **⚡ Fast Generation**: Typically completes in 10-30 seconds including post-processing
+- **✨ Enhanced Processing**: Automatic brightness, contrast, color, noise reduction, and sharpening
 - **🧘 Tranquil Aesthetics**: Specially optimized for peaceful, calming imagery
 
 ### Prompt Enhancement Examples
@@ -270,6 +251,13 @@ The combination of **Gemini 2.5 Pro** prompt enhancement + **Pollinations AI** g
 - 🌌 **Space**: Nebulae, galaxies, cosmic phenomena
 - 🌊 **Nature**: Ocean waves, tropical scenes, seasonal imagery
 - 🧘 **Tranquil Scenes**: Peaceful, meditative, and calming imagery
+
+## Checks
+
+- `python3 wallpaper_generator.py --help` prints the full option list; running with no prompt exits 1 with a clear message.
+- `python3 test_parsing.py` is a manual demo of the Gemini multi-option parser (it prints, it does not assert): on its sample input it selects Option 1, as expected. It is not an automated test suite.
+- Post-processing was verified locally on example_wallpaper.jpg (brightness, contrast, color, noise reduction, sharpening all run and the file is rewritten as JPEG).
+- Wallpaper setting itself is macOS-only (osascript, wallpaper-cli, m-cli) and was verified with stub binaries, not on a real Mac desktop.
 
 ## Troubleshooting
 
@@ -290,7 +278,6 @@ If prompt enhancement isn't working:
 If you get permission errors:
 ```bash
 chmod +x wallpaper_generator.py
-chmod +x generate-wallpaper
 ```
 
 ### Wallpaper Not Setting
@@ -312,7 +299,7 @@ python3 wallpaper_generator.py "your prompt" --displays 2
 
 - **Standard Mode**: Sends enhanced prompts to Pollinations with optimization parameters
 - **Private Mode**: Uses `--private` flag to skip Gemini enhancement and use minimal parameters with Pollinations
-- **No Data Storage**: Neither Gemini nor Pollinations store your prompts or generated images permanently
+- **What leaves your machine**: In standard mode your prompt is sent to Gemini (when a key is configured) and to Pollinations. Private mode skips Gemini and sends Pollinations only the minimal parameter set (no enhance, quality, or steps parameters)
 
 ## Migration from Previous Versions
 

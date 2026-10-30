@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
 TranquilAI - Serene AI Wallpaper Generator
-Uses Google Gemini 2.5 Pro for prompt enhancement and Pollinations for image generation
+Uses Google Gemini (model gemini-2.0-flash-exp, as configured in
+enhance_prompt_with_gemini) for prompt enhancement and Pollinations for
+image generation
 """
 
 import sys
@@ -93,7 +95,7 @@ def download_image_from_pollinations(prompt, width, height, seed, model, output_
         return False
 
 def enhance_prompt_with_gemini(user_prompt):
-    """Enhance user prompt using Gemini 2.5 Pro for better AI wallpaper generation"""
+    """Enhance user prompt using Gemini for better AI wallpaper generation"""
     try:
         if not GEMINI_AVAILABLE:
             print("  Gemini not available, using original prompt")
@@ -104,7 +106,7 @@ def enhance_prompt_with_gemini(user_prompt):
             print("  No Gemini API key found, using original prompt")
             return add_no_text_instruction(user_prompt)
         
-        print("  Enhancing prompt with Gemini 2.5 Pro...")
+        print("  Enhancing prompt with Gemini (gemini-2.0-flash-exp)...")
         
         # Check for alternative API key
         gemini_api_key = os.getenv('GEMINI_API_KEY')
@@ -269,13 +271,16 @@ def set_wallpaper(image_path, display_index=None, tool=None):
     elif tool == "m-cli":
         methods = [("m-cli", lambda p, d: set_wallpaper_m_cli(p, d))]
     elif tool == "applescript":
-        methods = [("AppleScript", lambda p, d: set_wallpaper_applescript(p, d))]
+        methods = [("applescript", lambda p, d: set_wallpaper_applescript(p, d))]
     else:
-        # Auto-detect best method
+        # Auto-detect best method. The first tuple element is the tool id that
+        # check_wallpaper_tool() understands; it must be the lowercase id
+        # ("applescript"), not a display name, or the check never matches and
+        # the method is silently skipped.
         methods = [
             ("wallpaper-cli", lambda p, d: set_wallpaper_wallpaper_cli(p, d)),
             ("m-cli", lambda p, d: set_wallpaper_m_cli(p, d)),
-            ("AppleScript", lambda p, d: set_wallpaper_applescript(p, d))
+            ("applescript", lambda p, d: set_wallpaper_applescript(p, d))
         ]
     
     for method_name, method_func in methods:
@@ -373,14 +378,18 @@ def setup_dependencies():
         else:
             print("✓ requests installed successfully")
     
-    # Check Gemini dependencies
+    # Check Gemini dependencies. The generator itself imports the current
+    # google-genai package ("from google import genai"); this check used to
+    # look for the old google-generativeai package instead, so --setup
+    # reported the dependency missing and installed a package the code
+    # never imports, even on a correctly set up machine.
     try:
-        import google.generativeai as genai
+        from google import genai
         from dotenv import load_dotenv
         print("✓ Gemini dependencies are available")
     except ImportError:
         print("Installing Gemini dependencies...")
-        result = run_command([sys.executable, "-m", "pip", "install", "google-generativeai", "python-dotenv", "--user"])
+        result = run_command([sys.executable, "-m", "pip", "install", "google-genai", "python-dotenv", "--user"])
         if not result or result.returncode != 0:
             print("⚠ Failed to install Gemini dependencies. Prompt enhancement will be disabled.")
         else:
@@ -665,6 +674,9 @@ def main():
             width, height = map(int, args.resolution.split('x'))
         except ValueError:
             print("Invalid resolution format. Use format like: 1920x1080")
+            sys.exit(1)
+        if width <= 0 or height <= 0:
+            print("Invalid resolution. Width and height must be positive. Use format like: 1920x1080")
             sys.exit(1)
     else:
         # Use 5K resolution for maximum quality on macOS
