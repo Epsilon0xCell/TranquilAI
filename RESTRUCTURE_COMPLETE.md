@@ -1,5 +1,10 @@
 # Project Restructuring Complete
 
+> Historical record from the July 2025 restructure. The Gemini model and
+> package names in this file are out of date (the code now uses
+> gemini-2.0-flash-exp through the google-genai package). README.md
+> describes the current code.
+
 ## Summary
 
 Successfully restructured the macOS AI Wallpaper Generator project to:

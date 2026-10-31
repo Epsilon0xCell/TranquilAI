@@ -1,6 +1,6 @@
 # TranquilAI - Serene AI Wallpaper Generator
 
-A powerful Python script that generates tranquil AI wallpapers using Google Gemini (model gemini-2.0-flash-exp, as configured in the code) for prompt enhancement and Pollinations (Flux) for 100% free wallpaper image generation, further applying advanced AI post-processing effects to produce serene, beautiful masterpieces.
+A Python script that generates tranquil AI wallpapers using Google Gemini (model gemini-2.0-flash-exp, as configured in the code) for prompt enhancement and Pollinations (Flux) for free wallpaper image generation, with post-processing applied to the downloaded image before it is set.
 
 - Generates a new tranquil wallpaper on each run (run it at login for a fresh wallpaper daily)
 - To me, other than music, wallpapers are the ultimate form of aesthetic art in the 21st century
@@ -230,11 +230,9 @@ Original Image → Adaptive Brightness → Contrast → Color → Noise Reductio
 
 The combination of **Gemini** prompt enhancement + **Pollinations AI** generation + **Advanced Post-Processing** creates serene wallpapers with:
 
-- **🎨 Professional Quality**: Cinematic lighting, perfect composition, and photorealistic details
-- **🖥️ Retina Ready**: Default 5K resolution (5120x2880) for crisp display on any screen
-- **🎯 Perfect Prompts**: Gemini transforms simple prompts into detailed artistic descriptions
-- **✨ Enhanced Processing**: Automatic brightness, contrast, color, noise reduction, and sharpening
-- **🧘 Tranquil Aesthetics**: Specially optimized for peaceful, calming imagery
+- Default 5K resolution (5120x2880) for Retina displays
+- Gemini turns a short prompt into a longer description before it is sent to Pollinations
+- Post-processing runs brightness, contrast, color, noise reduction, and sharpening in that order
 
 ### Prompt Enhancement Examples
 
@@ -242,22 +240,28 @@ The combination of **Gemini** prompt enhancement + **Pollinations AI** generatio
 
 **Gemini Enhanced:** `"A breathtaking panoramic mountain vista during golden hour, with dramatic peaks silhouetted against a blazing orange and pink sunset sky. Wispy clouds catch the warm light, creating depth and atmosphere. Professional landscape photography, ultra-high resolution, 8K quality."`
 
-**Result:** A stunning professional-quality wallpaper instead of a basic mountain image.
+That example is the shape of what the enhancement prompt asks for. What comes back varies by run, and the fallback when Gemini is unavailable or errors is your original prompt with the no text instruction added.
 
 ### Supported Styles
-- 🏔️ **Landscapes**: Mountains, forests, lakes, deserts
-- 🌃 **Cityscapes**: Modern skylines, neon-lit streets, architectural marvels  
-- 🎨 **Abstract Art**: Geometric patterns, fluid dynamics, color studies
-- 🌌 **Space**: Nebulae, galaxies, cosmic phenomena
-- 🌊 **Nature**: Ocean waves, tropical scenes, seasonal imagery
-- 🧘 **Tranquil Scenes**: Peaceful, meditative, and calming imagery
+- **Landscapes**: Mountains, forests, lakes, deserts
+- **Cityscapes**: Modern skylines, neon-lit streets, architectural subjects
+- **Abstract Art**: Geometric patterns, fluid dynamics, color studies
+- **Space**: Nebulae, galaxies, cosmic phenomena
+- **Nature**: Ocean waves, tropical scenes, seasonal imagery
+- **Tranquil Scenes**: Peaceful, meditative, and calming imagery
 
-## Checks
+## Tests
 
-- `python3 wallpaper_generator.py --help` prints the full option list; running with no prompt exits 1 with a clear message.
-- `python3 test_parsing.py` is a manual demo of the Gemini multi-option parser (it prints, it does not assert): on its sample input it selects Option 1, as expected. It is not an automated test suite.
-- Post-processing was verified locally on example_wallpaper.jpg (brightness, contrast, color, noise reduction, sharpening all run and the file is rewritten as JPEG).
-- Wallpaper setting itself is macOS-only (osascript, wallpaper-cli, m-cli) and was verified with stub binaries, not on a real Mac desktop.
+25 tests, run from the repo root:
+
+```bash
+python3 -m unittest
+```
+
+- test_parsing.py (3 tests) imports parse_gemini_response from wallpaper_generator.py and asserts on it, including the two option sample that made me write the parser. It used to hold a copy of the function and print what the copy did; a green run proved nothing about the shipped code, so it tests the real one now.
+- test_wallpaper_generator.py (22 tests) covers the no text instruction, Gemini key selection (GOOGLE_API_KEY first, GEMINI_API_KEY accepted on its own, no key falls back to the original prompt), the Pollinations download with requests stubbed (real image bytes accepted, an error page rejected and deleted, a network error returns False), generation in private mode, post-processing returning a path on success and None on a corrupt file, the AppleScript availability check and path escaping, and the CLI refusing a blank prompt, a zero or negative display count, and bad resolutions before any generation runs.
+- No test touches the network or a live API. The Gemini client is stubbed, because the google-genai package is not installed in every environment.
+- Wallpaper setting itself is macOS-only (osascript, wallpaper-cli, m-cli) and is covered here through stubbed commands, not on a real Mac desktop.
 
 ## Troubleshooting
 

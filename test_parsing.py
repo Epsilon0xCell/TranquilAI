@@ -1,105 +1,48 @@
 #!/usr/bin/env python3
 """
-Test script for Gemini response parsing
+Tests for the Gemini response parser in wallpaper_generator.py.
+
+This file used to hold a copy of parse_gemini_response and print what
+the copy did with one sample. A green run proved the copy worked, not
+the shipped function. It now imports the real function and asserts on
+it. Run with: python3 -m unittest test_parsing -v
 """
 
-# This file holds a copy of parse_gemini_response from
-# wallpaper_generator.py, not an import of it. I copied it so this demo
-# runs on its own with no other setup, and the example below is the exact
-# response shape that made me write the parser. The risk is plain: fix
-# the parser in the generator and this copy does not follow, so a green
-# run here proves this copy works, not that the shipped one does. The
-# sample selects Option 1 and the parsed text is 551 characters long.
+import unittest
 
-def parse_gemini_response(response_text):
-    """
-    Parse Gemini response to extract the best option when multiple are provided.
-    Sometimes Gemini provides multiple options despite instructions to provide only one.
-    """
-    try:
-        # Check if response contains multiple options
-        if "**Option" in response_text or "Option 1" in response_text:
-            print("  Multiple options detected, selecting the first one...")
-            
-            # Look for patterns like "**Option 1 (Title):**" or "Option 1:"
-            import re
-            
-            # First try to find the content between quotes for Option 1
-            option_pattern = r'\*\*Option\s+1[^:]*:\*\*\s*\n?\s*"([^"]+)"'
-            match = re.search(option_pattern, response_text, re.DOTALL)
-            
-            if match:
-                selected_option = match.group(1).strip()
-                print(f"  ✓ Selected: Option 1")
-                return selected_option
-            
-            # Alternative pattern without quotes but with clear option boundary
-            option_pattern = r'\*\*Option\s+1[^:]*:\*\*\s*\n?\s*([^*]+?)(?=\*\*Option\s+2|\n\*\*|$)'
-            match = re.search(option_pattern, response_text, re.DOTALL)
-            
-            if match:
-                selected_option = match.group(1).strip()
-                # Clean up any trailing text or formatting
-                lines = selected_option.split('\n')
-                # Take the first non-empty line or combine multiple lines if it's a paragraph
-                if lines:
-                    if len(lines) == 1:
-                        selected_option = lines[0].strip()
-                    else:
-                        # For multi-line descriptions, clean and join
-                        cleaned_lines = [line.strip() for line in lines if line.strip() and not line.strip().startswith('**')]
-                        selected_option = ' '.join(cleaned_lines)
-                print(f"  ✓ Selected: Option 1")
-                return selected_option
-            
-            # Fallback: split by lines and take first substantial content after "Option 1"
-            lines = response_text.split('\n')
-            capture_next = False
-            collected_lines = []
-            
-            for line in lines:
-                if "Option 1" in line:
-                    capture_next = True
-                    continue
-                elif capture_next:
-                    if line.strip():
-                        if line.startswith("**Option 2") or line.startswith("Option 2"):
-                            break  # Stop at Option 2
-                        if not line.startswith("**") and not line.startswith("Option"):
-                            # Remove quotes if present and clean the line
-                            clean_line = line.strip().strip('"')
-                            if clean_line:
-                                collected_lines.append(clean_line)
-                    elif collected_lines:  # Empty line after collecting content
-                        break
-            
-            if collected_lines:
-                selected_option = ' '.join(collected_lines)
-                print(f"  ✓ Selected: Option 1 (fallback method)")
-                return selected_option
-        
-        # If no multiple options detected, return the original response
-        return response_text.strip()
-        
-    except Exception as e:
-        print(f"  ⚠ Error parsing Gemini response: {str(e)}")
-        print("  Using original response")
-        return response_text.strip()
+from wallpaper_generator import parse_gemini_response
 
-# Test with the example from user's problem
-test_response = '''**Option 1 (Epic Fantasy):**
+# The sample response shape that made me write the parser: two options
+# despite instructions to provide only one.
+SAMPLE_RESPONSE = '''**Option 1 (Epic Fantasy):**
 
 "A colossal, ethereal giant, sculpted from ancient granite and verdant moss, stands silhouetted against a dramatic, swirling twilight sky. Wisps of luminous fog curl around his colossal legs, obscuring the lower landscape. Emphasize a sense of overwhelming scale and ancient power. Lighting is key: rim light from the setting sun creates a vibrant halo around his form, highlighting the intricate textures of his earthen skin. Panoramic composition, ideal for widescreen desktop wallpaper. Fantasy art, digital painting, photorealistic detail. NO TEXT."
 
 **Option 2 (Sci-Fi/Cyberpunk):**
 
-"A monolithic cyborg, a bio-engineered giant, looms above a dystopian cityscape. Neon lights reflect off polished chrome and rain-slicked streets, creating a vibrant, cyberpunk aesthetic. Steam vents and glowing energy conduits accentuate the sheer power and scale of this future-age behemoth. Ultra-detailed textures, volumetric lighting, cinematic composition. Dark blues, vibrant oranges, and hints of toxic green. Wide-angle, low perspective. Sci-fi concept art, photorealistic rendering, 8K resolution. NO TEXT."'''
+"A monolithic cyborg, a bio-engineered giant, looms above a dystopian cityscape. Neon lights reflect off polished chrome and rain-slicked streets, creating a vibrant, cyberpunk aesthetic."'''
 
-print("Testing Gemini response parsing...")
-print(f"Original response length: {len(test_response)} characters")
-print()
 
-result = parse_gemini_response(test_response)
-print()
-print(f"Parsed result: {result}")
-print(f"Parsed length: {len(result)} characters")
+class ParseGeminiResponseTests(unittest.TestCase):
+    def test_quoted_option_one_is_selected(self):
+        result = parse_gemini_response(SAMPLE_RESPONSE)
+        self.assertTrue(result.startswith("A colossal, ethereal giant"))
+        self.assertNotIn("Option 2", result)
+        self.assertNotIn("monolithic cyborg", result)
+        self.assertEqual(len(result), 551)
+
+    def test_single_response_passes_through_stripped(self):
+        self.assertEqual(
+            parse_gemini_response("  a quiet lake at dawn  "),
+            "a quiet lake at dawn",
+        )
+
+    def test_unquoted_option_one_block_is_selected(self):
+        response = "**Option 1 (Calm):**\nA still pond under pine trees, soft morning light.\n\n**Option 2 (Wild):**\nA storm over the ocean."
+        result = parse_gemini_response(response)
+        self.assertIn("still pond", result)
+        self.assertNotIn("storm", result)
+
+
+if __name__ == "__main__":
+    unittest.main()

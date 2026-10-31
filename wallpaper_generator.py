@@ -103,13 +103,24 @@ def download_image_from_pollinations(prompt, width, height, seed, model, output_
         with open(output_file, 'wb') as file:
             file.write(response.content)
         
-        # Verify the file was created and has content
-        # This check is size only. raise_for_status above already caught
-        # HTTP errors, but a 200 response holding a small error image
-        # would pass this test and be treated as a wallpaper. I have not
-        # seen Pollinations do that; if it ever does, this is the line
-        # that believed it.
+        # Verify the file was created and has content, then check that
+        # the content is an image PIL can read. raise_for_status above
+        # already caught HTTP errors, but a 200 response holding an
+        # error page would pass a size only check and be treated as a
+        # wallpaper. When PIL is not installed the size check is all I
+        # have, so the image check runs only when it is available.
         if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
+            if IMAGE_PROCESSING_AVAILABLE:
+                try:
+                    with Image.open(output_file) as downloaded:
+                        downloaded.verify()
+                except Exception:
+                    print("✗ Downloaded file is not a readable image, discarding it")
+                    try:
+                        os.remove(output_file)
+                    except OSError:
+                        pass
+                    return False
             print(f"✓ Image downloaded successfully: {output_file}")
             return True
         else:
@@ -134,20 +145,18 @@ def enhance_prompt_with_gemini(user_prompt):
         # prompt plus the no text instruction. Gemini is a quality step,
         # never a gate. A missing package, a missing key, or a failed call
         # must not stop a wallpaper from being generated.
-        api_key = os.getenv('GOOGLE_API_KEY')
+        # GOOGLE_API_KEY wins when both names are set. GEMINI_API_KEY on
+        # its own is accepted too: the .env.example names GOOGLE_API_KEY,
+        # but plenty of Gemini tooling uses the other name, and a machine
+        # with only that one set is configured, not broken.
+        api_key = os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
         if not api_key:
             print("  No Gemini API key found, using original prompt")
             return add_no_text_instruction(user_prompt)
-        
+
         print("  Enhancing prompt with Gemini (gemini-2.0-flash-exp)...")
-        
-        # Check for alternative API key
-        # GOOGLE_API_KEY wins when both are set, and GEMINI_API_KEY alone
-        # is never used as the key. It only earns this warning. That is a
-        # trap I set for myself: a machine with only GEMINI_API_KEY set
-        # looks configured and still runs without enhancement.
-        gemini_api_key = os.getenv('GEMINI_API_KEY')
-        if gemini_api_key and api_key:
+
+        if os.getenv('GEMINI_API_KEY') and os.getenv('GOOGLE_API_KEY'):
             print("Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.")
         
         # Configure Gemini
@@ -215,16 +224,16 @@ def generate_wallpaper(prompt, width, height, seed, output_file, private=False, 
         download_success = download_image_from_pollinations(enhanced_prompt, width, height, seed, "flux", output_file, private)
         
         if download_success and not no_enhance:
-            # Apply post-processing effects to enhance image quality
-            # A flaw I know is in this line: enhance_image_quality returns
-            # the input path both when it succeeds and when it fails and
-            # falls back to the original image, so this comparison is
-            # True either way. A failed enhancement is reported as a
-            # successful generation. The wallpaper on disk is fine in
-            # both cases, which is why I have left it, but the return
-            # value does not mean what the old comment beside it claimed.
+            # Apply post-processing effects to enhance image quality.
+            # enhance_image_quality returns None when it did not run or
+            # failed, and the downloaded file is still a usable
+            # wallpaper in that case, so generation reports success
+            # either way and the post-processing result is reported on
+            # its own line instead of hiding inside this return value.
             enhanced_output = enhance_image_quality(output_file)
-            return enhanced_output == output_file  # Return True if processing succeeded
+            if enhanced_output is None:
+                print("  Post-processing did not complete; keeping the downloaded image as it is")
+            return True
         elif download_success and no_enhance:
             print("  Post-processing disabled by user")
             return True
@@ -268,13 +277,11 @@ def check_wallpaper_tool(tool):
         result = run_command(["which", "m"])
         return result and result.returncode == 0
     elif tool == "applescript":
-        # I do not probe for osascript. This returns True on any machine,
-        # including a Linux box where osascript does not exist, and the
-        # failure only shows up when the script actually runs. Read this
-        # as "always available on the Mac this tool targets", because
-        # that assumption is the whole reason AppleScript sits last in
-        # the set_wallpaper order as the fallback that cannot be missing.
-        return True  # AppleScript is always available on macOS
+        # AppleScript only exists where osascript does: macOS. I check
+        # the platform and the binary instead of assuming, so a Linux or
+        # Windows run reports the method unavailable here instead of
+        # failing later inside set_wallpaper with a missing tool.
+        return sys.platform == "darwin" and shutil.which("osascript") is not None
     return False
 
 def get_display_count():
@@ -293,29 +300,6 @@ def get_display_count():
     except:
         pass
     return 1  # Default to 1 display if detection fails
-
-def get_display_resolution():
-    """Get the primary display resolution."""
-    # Nothing calls this function. main uses --resolution or the same 5K
-    # pair hardcoded there. I keep it because real per display detection
-    # is the fix I would want before trusting this on mixed size
-    # monitors, but today it is dead code and its fallback below is the
-    # value main actually uses.
-    try:
-        result = run_command([
-            "osascript", "-e",
-            'tell application "Finder" to get bounds of window of desktop'
-        ])
-        if result and result.returncode == 0:
-            # Parse output like "0, 0, 1920, 1080"
-            bounds = result.stdout.strip().split(", ")
-            if len(bounds) >= 4:
-                width = int(bounds[2])
-                height = int(bounds[3])
-                return width, height
-    except:
-        pass
-    return 5120, 2880  # Default to 5K resolution for maximum quality on macOS
 
 def set_wallpaper(image_path, display_index=None, tool=None):
     """Set wallpaper using the best available method"""
@@ -365,19 +349,18 @@ def set_wallpaper_applescript(image_path, display_index=None):
     # Two different scripts because macOS gives me two different doors.
     # A numbered desktop is reached through System Events, desktop N.
     # Setting every desktop at once goes through Finder and its desktop
-    # picture. The image path is interpolated straight into the script
-    # text, so a path containing a double quote would break the script.
-    # Paths this program makes itself are timestamped names under the
-    # queue directory, so I have not hit that, but the queue directory
-    # itself comes from --queue-dir, which is user supplied and could
-    # carry one.
+    # picture. The image path lands inside a quoted string in the script
+    # text, and the queue directory comes from --queue-dir, which is
+    # user supplied, so I escape backslashes and double quotes first or
+    # a path containing either one breaks the script.
+    escaped_path = image_path.replace("\\", "\\\\").replace('"', '\\"')
     try:
         if display_index is not None:
             # For specific display
             script = f'''
             tell application "System Events"
                 tell desktop {display_index}
-                    set picture to "{image_path}"
+                    set picture to "{escaped_path}"
                 end tell
             end tell
             '''
@@ -385,7 +368,7 @@ def set_wallpaper_applescript(image_path, display_index=None):
             # For all displays
             script = f'''
             tell application "Finder"
-                set desktop picture to POSIX file "{image_path}"
+                set desktop picture to POSIX file "{escaped_path}"
             end tell
             '''
         
@@ -497,10 +480,14 @@ def enhance_image_quality(image_path, output_path=None):
     """
     Apply subtle, professional post-processing effects to enhance image quality
     Conservative enhancements that preserve natural appearance
+
+    Returns the output path when the enhanced image was saved, and None
+    when processing was unavailable or failed. Callers used to get the
+    input path back in both cases, which made failure look like success.
     """
     if not IMAGE_PROCESSING_AVAILABLE:
         print("  Image processing libraries not available, skipping enhancement")
-        return image_path
+        return None
     
     try:
         # Use input path as output if not specified
@@ -560,7 +547,7 @@ def enhance_image_quality(image_path, output_path=None):
     except Exception as e:
         print(f"  ⚠ Post-processing failed: {str(e)}")
         print("  Using original image")
-        return image_path
+        return None
 
 def apply_adaptive_brightness(img):
     """Apply intelligent brightness adjustment based on image characteristics"""
@@ -756,8 +743,10 @@ def main():
         success = setup_dependencies()
         sys.exit(0 if success else 1)
     
-    # Check if prompt is provided when needed
-    if not args.prompt:
+    # Check if prompt is provided when needed. A prompt of only spaces
+    # counts as missing: it would generate a wallpaper of nothing and
+    # the failure would surface far from the real cause.
+    if not args.prompt or not args.prompt.strip():
         print("Error: prompt is required for wallpaper generation")
         print("Use --setup flag to install dependencies without generating wallpapers")
         parser.print_help()
@@ -791,8 +780,14 @@ def main():
         # Use 5K resolution for maximum quality on macOS
         width, height = 5120, 2880  # 5K resolution - highest quality for macOS displays
     
-    # Determine number of displays
-    displays = args.displays or get_display_count()
+    # Determine number of displays. An explicit --displays 0 used to
+    # fall through the "or" into auto-detect, so the flag looked
+    # accepted and meant something else. Zero or negative is a mistake,
+    # and I say so before any generation is attempted.
+    displays = args.displays if args.displays is not None else get_display_count()
+    if displays < 1:
+        print("Invalid --displays value. Number of displays must be at least 1")
+        sys.exit(1)
     
     print(f"Generating wallpapers for {displays} display(s)")
     print(f"Resolution: {width}x{height}")
