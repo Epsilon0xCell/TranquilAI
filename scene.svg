@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 260" role="img" aria-label="Open drawer from above under its lamp: a stair step gaining colour, a thimble tipping, a magnifier drifting, a shaving lifting">
+<rect width="1200" height="260" fill="#120e0a"/>
+<ellipse cx="600" cy="130" rx="520" ry="118" fill="#34261a"><animate attributeName="opacity" values=".85;1;.85" dur="11s" repeatCount="indefinite"/></ellipse>
+<g fill="#5c3e26"><rect x="180" y="36" width="150" height="14"/><rect x="420" y="36" width="150" height="14" opacity=".6"/><rect x="660" y="36" width="150" height="14" opacity=".6"/></g>
+<rect x="170" y="60" width="860" height="170" fill="#5c3e26"/>
+<rect x="186" y="76" width="260" height="138" fill="#b2787a"/>
+<g><rect x="212" y="176" width="104" height="18" fill="#c49e54"/><rect x="246" y="146" width="104" height="18" fill="#c49e54"/><rect x="280" y="116" width="104" height="18" fill="#e6ddc8"><animate attributeName="fill" values="#e6ddc8;#c49e54;#e6ddc8" dur="14s" repeatCount="indefinite"/></rect><line x1="218" y1="172" x2="386" y2="112" stroke="#6e5430" stroke-width="4"/></g>
+<g><polygon points="472,120 506,120 500,84 478,84" fill="#bababc"><animateTransform attributeName="transform" type="rotate" values="0 489 120;3 489 120;0 489 120" dur="13s" repeatCount="indefinite"/></polygon></g>
+<rect x="462" y="76" width="260" height="138" fill="#eee8da"/>
+<rect x="738" y="76" width="276" height="138" fill="#cebca8"/>
+<circle cx="830" cy="130" r="34" fill="none" stroke="#c0c2c4" stroke-width="5"><animate attributeName="cx" values="830;852;830" dur="16s" repeatCount="indefinite"/></circle>
+<path d="M240 224 Q 420 206 600 224" fill="none" stroke="#e8cc8c" stroke-width="6"><animate attributeName="d" values="M240 224 Q 420 206 600 224;M240 224 Q 420 194 600 224;M240 224 Q 420 206 600 224" dur="12s" repeatCount="indefinite"/></path>
+</svg>

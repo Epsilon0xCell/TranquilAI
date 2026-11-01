@@ -1,4 +1,16 @@
+![Intro scenery](intro-banner.png)
+
+
 # TranquilAI - Serene AI Wallpaper Generator
+
+![Wordmark banner](banner.png)
+
+![Animated scene](scene.svg)
+
+![Separator](sep-heavy.svg)
+
+> **Tied tag:** set GOOGLE_API_KEY (or GEMINI_API_KEY) in a .env file for prompt enhancement, and note that in private mode the printed Pollinations address still exposes the prompt in terminal scrollback.
+
 
 A Python script that generates tranquil AI wallpapers using Google Gemini (model gemini-2.0-flash-exp, as configured in the code) for prompt enhancement and Pollinations (Flux) for free wallpaper image generation, with post-processing applied to the downloaded image before it is set.
 
